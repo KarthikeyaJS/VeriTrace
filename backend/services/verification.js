@@ -185,6 +185,8 @@ function evaluate({ parsed, chainProduct, history = [], eventCount = null, metad
   }
   if (ml && ml.isAnomaly) {
     reasons.push(reason("ML_ANOMALY", "warning", `This product's journey looks unusual compared with normal supply chains (anomaly score ${Number(ml.anomalyScore).toFixed(2)}).`));
+  } else if (ml) {
+    reasons.push(reason("ML_NORMAL", "ok", `The anomaly model found nothing unusual in this journey (score ${Number(ml.anomalyScore).toFixed(2)}).`));
   }
 
   // ---- Informational context
@@ -226,7 +228,7 @@ async function verify({ payload, productId, deviceId }, deps) {
     network: info.network,
     qrHash: parsed.ok ? parsed.qrHash : null,
   };
-  const record = (status, reasons, pid) =>
+  const record = (status, reasons, pid, mlResult = null) =>
     store.addScan({
       productId: pid || null,
       at: now.toISOString(),
@@ -234,6 +236,8 @@ async function verify({ payload, productId, deviceId }, deps) {
       status,
       reasons: reasons.map((r) => r.code).filter((c, i, a) => a.indexOf(c) === i),
       flags: reasons.filter((r) => r.severity === "critical" || r.severity === "warning").map((r) => r.code),
+      mlScored: Boolean(mlResult),
+      ml: mlResult ? { anomalyScore: mlResult.anomalyScore, isAnomaly: mlResult.isAnomaly, modelVersion: mlResult.modelVersion } : null,
     });
 
   if (!parsed.ok) {
@@ -263,9 +267,10 @@ async function verify({ payload, productId, deviceId }, deps) {
     lastHour: prior.lastHour + 1,
   };
 
-  const mlResult = await ml.score(mlFeatures({ history: handoffs, scanStats, chainProduct, now }));
+  const features = mlFeatures({ history: handoffs, scanStats, chainProduct, now });
+  const mlResult = await ml.score(features);
   const result = evaluate({ parsed, chainProduct, history: handoffs, eventCount, metadata, scanStats, ml: mlResult, settings, now });
-  await record(result.status, result.reasons, parsed.productId);
+  await record(result.status, result.reasons, parsed.productId, mlResult);
 
   let recomputedHash = null;
   try {
@@ -287,7 +292,8 @@ async function verify({ payload, productId, deviceId }, deps) {
       latestBlock: handoffs.length ? handoffs[handoffs.length - 1].blockNumber : null,
       scanCount: scanStats.count,
       distinctDevices: scanStats.distinctDevices,
-      ml: mlResult,
+      // null = ML service disabled, offline or too slow (verification continued without it)
+      ml: mlResult ? { ...mlResult, features } : null,
     },
   };
 }

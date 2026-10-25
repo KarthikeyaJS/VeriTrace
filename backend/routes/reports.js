@@ -1,4 +1,4 @@
-// Admin reports: scan counts per status, recent Flagged/Suspect scans, product/user totals.
+// Admin reports: scan counts per status, recent Flagged/Suspect scans, product/user totals, ML anomaly stats.
 const express = require("express");
 const { z } = require("zod");
 const authenticate = require("../middleware/authenticate");
@@ -6,6 +6,7 @@ const authorize = require("../middleware/authorize");
 const asyncHandler = require("../utils/asyncHandler");
 const store = require("../services/firestore");
 const blockchain = require("../services/blockchain");
+const ml = require("../services/ml");
 
 const router = express.Router();
 const STATUSES = ["Genuine", "Flagged", "Suspect", "Unverified"];
@@ -24,18 +25,22 @@ async function withProductNames(scans) {
     status: s.status,
     reasons: s.reasons || [],
     flags: s.flags || [],
+    ml: s.ml || null,
   }));
 }
 
 router.get(
   "/summary",
   asyncHandler(async (req, res) => {
-    const [scanCounts, recent, productDocs, users, settings] = await Promise.all([
+    const [scanCounts, recent, productDocs, users, settings, mlHealth, scansScored, flaggedByMl] = await Promise.all([
       store.countScansByStatus(STATUSES),
       store.listScans({ statuses: ["Flagged", "Suspect"], limit: 10 }),
       store.listProducts(),
       store.listUsers(),
       store.getVerificationSettings(),
+      ml.health(),
+      store.countScansWhere("mlScored", "==", true),
+      store.countScansWhere("flags", "array-contains", "ML_ANOMALY"),
     ]);
 
     const byStage = { Manufactured: 0, AtSupplier: 0, AtRetailer: 0, Sold: 0, NotOnChain: 0 };
@@ -51,6 +56,7 @@ router.get(
       users: { total: users.length, active: users.filter((u) => u.active !== false).length, byRole: usersByRole },
       recentAlerts: await withProductNames(recent),
       settings,
+      ml: { ...mlHealth, scansScored, flaggedByMl },
     });
   })
 );
@@ -60,7 +66,8 @@ router.get(
   asyncHandler(async (req, res) => {
     const status = z.enum([...STATUSES, "all"]).default("all").parse(req.query.status || "all");
     const limit = z.coerce.number().int().min(1).max(200).default(50).parse(req.query.limit || 50);
-    const scans = await store.listScans({ statuses: status === "all" ? null : [status], limit });
+    const flag = req.query.flag ? z.string().regex(/^[A-Z_]{3,40}$/, "Invalid flag").parse(req.query.flag) : null;
+    const scans = await store.listScans({ statuses: status === "all" ? null : [status], flag, limit });
     res.json({ scans: await withProductNames(scans) });
   })
 );

@@ -56,7 +56,14 @@ class Score(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"ok": _model is not None, "modelVersion": _meta.get("modelVersion"), "metrics": _meta.get("metrics")}
+    return {
+        "ok": _model is not None,
+        "modelVersion": _meta.get("modelVersion"),
+        "threshold": _meta.get("threshold"),
+        "features": _meta.get("features"),
+        "trainedOn": _meta.get("trainedOn"),
+        "metrics": _meta.get("metrics"),
+    }
 
 
 @app.post("/score", response_model=Score)

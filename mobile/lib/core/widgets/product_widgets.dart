@@ -164,6 +164,16 @@ class ProductInfoCard extends StatelessWidget {
   }
 }
 
+/// One-line summary of the ML anomaly check for the technical details.
+String _mlLine(Object? ml) {
+  if (ml is! Map) return 'Not run: ML service offline (the result is based on the other checks)';
+  final score = (ml['anomalyScore'] as num?)?.toStringAsFixed(3) ?? '—';
+  final threshold = (ml['threshold'] as num?)?.toStringAsFixed(3);
+  final verdict = ml['isAnomaly'] == true ? 'UNUSUAL' : 'normal';
+  final model = ml['modelVersion'] == null ? '' : '\nmodel ${ml['modelVersion']}';
+  return 'score $score${threshold == null ? '' : ' (threshold $threshold)'}: $verdict$model';
+}
+
 /// Collapsed "Technical details" expander (tx hashes, block numbers, contract address, product hash).
 class TechnicalDetails extends StatelessWidget {
   const TechnicalDetails({super.key, required this.technical, this.journey = const []});
@@ -189,8 +199,7 @@ class TechnicalDetails extends StatelessWidget {
           InfoRow('Register tx', s('registerTxHash'), copyable: true, mono: true),
           InfoRow('Register block', s('registerBlock')),
           if (technical['scanCount'] != null) InfoRow('Scans', '${s('scanCount')} from ${s('distinctDevices')} device(s)'),
-          if (technical['ml'] is Map)
-            InfoRow('ML anomaly score', (technical['ml'] as Map)['anomalyScore']?.toStringAsFixed(3)),
+          if (technical.containsKey('ml')) InfoRow('ML anomaly check', _mlLine(technical['ml'])),
           if (journey.isNotEmpty) ...[
             const Divider(height: 24),
             for (final e in journey)

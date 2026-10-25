@@ -16,8 +16,17 @@ Flutter app (Android, Bloc) ──HTTP/JSON──> Node.js + Express ──ether
 - **Product fingerprint**: SHA-256 of canonical identity fields, anchored on-chain. Detects forged QR codes and tampered database records.
 - **Verification rules** (one module, unit-tested): forged QR / tampered record / inconsistent history → Suspect. Pre-retail scan, pending transfer, expired, over-scanned (possible clone), too-fast handoff, missing metadata, ML anomaly → Flagged. Unknown ID → Unverified.
 - **Android app**: public scanner (torch, manual ID), result with journey timeline + technical details; role dashboards for manufacturer (register, QR share PNG, A4 label sheet, transfer), supplier/retailer (incoming, custody, mark sold), admin (accounts, on-chain roles, reports).
-- **Demo tooling**: `npm run reset-demo` (redeploy + seed every scenario + QR images), `npm run e2e` (42-check pass/fail table), Postman collection.
-- **ML (optional)**: FastAPI IsolationForest trained on synthetic journeys. It can only flag, never mark Suspect, and the app keeps working if it's down.
+- **Demo tooling**: `npm run reset-demo` (redeploy + seed every scenario + QR images), `npm run e2e` (46-check pass/fail table), Postman collection.
+- **ML anomaly detection (optional)**: FastAPI IsolationForest trained on synthetic journeys. It scores every verification, shows as a check in "Why" and in Technical details, and admins get an "Anomaly detection (ML)" card in Reports. It can only flag, never mark Suspect, and the app keeps working if it's down.
+
+## ML anomaly detection
+`ml/` is a FastAPI service with an IsolationForest model trained on **synthetic** supply-chain journeys (normal journeys plus injected clones, scan bursts, laundering through many hops, scans of unreleased goods, and very old products scanned again).
+1. On every verification the backend sends the journey's features (handoffs, min/mean custody gap, age, scan count, distinct devices, scans in the last hour, stage) to `POST /score`, with a 1.5 s timeout.
+2. The result is shown in **Why**: *"nothing unusual (score 0.52)"*, or a ⚠ **Flagged** reason when the journey is anomalous. ML can never make a result Suspect.
+3. It's also shown in **Technical details** (score, threshold, model), stored with the scan in Firestore (`ml`, `mlScored`), and summarised for admins in **Reports → Anomaly detection (ML)** (online/offline, scans scored, scans flagged, accuracy on synthetic data).
+4. If the service is stopped, verification continues: the check reads "not run". The e2e reports the 3 ML checks as SKIP.
+
+Setup, training and metrics: [ml/README.md](ml/README.md).
 
 ## Screenshots
 | Home | Genuine | Journey | On-chain rejection |
@@ -43,7 +52,7 @@ npm run reset-demo                                     # 3. T2: deploy contract 
 npm --prefix backend start                             # 4. T3: backend on :3000
 adb reverse tcp:3000 tcp:3000; cd mobile; flutter run --dart-define=API_BASE_URL=http://127.0.0.1:3000   # 5. T4: app (USB)
 ```
-Check: `npm --prefix backend run e2e` → `42/42 passed`.
+Check: `npm --prefix backend run e2e` → `46/46 passed` (`43/46, 3 skipped` if the ML service is not running).
 
 ## Demo accounts (password `Demo@1234`)
 | Email | Role | Organisation |
@@ -62,9 +71,9 @@ Demo QR images (one per scenario, plus a forged and an unknown one) are written 
 | Suite | Command | Count |
 |---|---|---|
 | Contract (Hardhat + chai) | `npm test` | 25 |
-| Backend (jest + supertest) | `npm --prefix backend test` | 81 |
-| End-to-end (running stack) | `npm --prefix backend run e2e` | 42 checks |
-| Flutter (bloc_test, widget, unit) | `cd mobile; flutter analyze; flutter test` | 23, 0 analyzer issues |
+| Backend (jest + supertest) | `npm --prefix backend test` | 83 |
+| End-to-end (running stack) | `npm --prefix backend run e2e` | 46 checks (3 ML checks SKIP when ML is off) |
+| Flutter (bloc_test, widget, unit) | `cd mobile; flutter analyze; flutter test` | 26, 0 analyzer issues |
 | ML (pytest) | `cd ml; .\.venv\Scripts\python -m pytest -q` | 7 |
 
 ## Documentation

@@ -16,10 +16,21 @@ describe("ML client", () => {
   afterEach(() => Object.assign(config.ml, original));
 
   test("returns the score from a healthy service", async () => {
-    const s = await server((req, res) => res.end(JSON.stringify({ anomalyScore: 0.7, isAnomaly: true, modelVersion: "t" })));
+    const s = await server((req, res) => res.end(JSON.stringify({ anomalyScore: 0.7, isAnomaly: true, threshold: 0.56, modelVersion: "t" })));
     config.ml.url = `http://127.0.0.1:${s.address().port}`;
-    await expect(ml.score(features)).resolves.toEqual({ anomalyScore: 0.7, isAnomaly: true, modelVersion: "t" });
+    await expect(ml.score(features)).resolves.toEqual({ anomalyScore: 0.7, isAnomaly: true, threshold: 0.56, modelVersion: "t" });
     s.close();
+  });
+
+  test("health reports model version, threshold and metrics; offline when unreachable", async () => {
+    const s = await server((req, res) => res.end(JSON.stringify({ ok: true, modelVersion: "iforest-x", threshold: 0.5, metrics: { overallRecall: 0.9 } })));
+    config.ml.url = `http://127.0.0.1:${s.address().port}`;
+    await expect(ml.health()).resolves.toMatchObject({ configured: true, ok: true, modelVersion: "iforest-x", threshold: 0.5, metrics: { overallRecall: 0.9 } });
+    s.close();
+    config.ml.url = "http://127.0.0.1:1";
+    await expect(ml.health()).resolves.toMatchObject({ configured: true, ok: false });
+    config.ml.url = "";
+    await expect(ml.health()).resolves.toEqual({ configured: false, ok: false });
   });
 
   test("times out after ML_TIMEOUT_MS and returns null", async () => {

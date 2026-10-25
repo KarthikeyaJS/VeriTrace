@@ -59,8 +59,8 @@
 | 7 | Invalid transitions / unauthorized writes rejected on-chain and in the API, clear in the app | ✅ Hardhat tests; e2e #6–8, #13, #16, #20–22, #26; both rejections shown in the app |
 | 8 | Login + role dashboards; admin creates users, changes roles (on-chain) | ✅ e2e #35–41; emulator (manufacturer, supplier, admin) |
 | 9 | Consumers verify without login | ✅ e2e (unauthenticated `/verify`); emulator |
-| 10 | `reset-demo` and `e2e` pass from a fresh Hardhat node | ✅ node restarted → reset-demo → 42/42 |
-| 11 | Hardhat, jest, `flutter analyze`, Flutter tests pass | ✅ 25 / 81 / 0 issues / 23 |
+| 10 | `reset-demo` and `e2e` pass from a fresh Hardhat node | ✅ node restarted → reset-demo → 46/46 (with ML) |
+| 11 | Hardhat, jest, `flutter analyze`, Flutter tests pass | ✅ 25 / 83 / 0 issues / 26 |
 | 12 | No location permission or GPS code | ✅ source + merged manifest, pubspec, lib |
 | 13 | All docs in section 10 exist and are accurate | ✅ PROGRESS, DECISIONS, SETUP, API, ARCHITECTURE, DEMO_SCRIPT, LIMITATIONS, Postman, README |
 | 14 | ML works and degrades gracefully when stopped | ✅ pytest 7; e2e with ML on/off; verify with ML stopped |
@@ -69,6 +69,17 @@
 - `backend/serviceAccountKey.json` and `mobile/android/app/google-services.json` in place (git-ignored); `backend/.env` switched from the emulators to the project; `.firebaserc` default = `veritrace-198d5` (alias `demo` = emulators).
 - **Verified:** `/health` → Firestore `mode: firebase`; `npm run reset-demo` created the 7 demo accounts in Firebase Auth and seeded Firestore (≈29 s); `npm run e2e` → **42/42 passed** (REST sign-in with the project API key, token verification, account create/disable/delete); all 10 demo QR codes return their expected result; debug APK builds with the Google Services plugin applied.
 - Firestore rules released with `npm --prefix backend run deploy:rules` (Admin SDK). `firebase deploy` with the service account is blocked by a missing `serviceusage` IAM role — not needed.
+
+## ML integration completed ✅ (2026-10-25)
+- **Built:**
+  - `ML_NORMAL` passed-check reason when the model scores a journey as normal.
+  - Scans store `mlScored` and `ml { anomalyScore, isAnomaly, modelVersion }`.
+  - `technical.ml` now includes the threshold and the features sent; it is `null` when ML was unavailable.
+  - `/health` and `/reports/summary` expose the model version, threshold, synthetic metrics, scans scored and scans flagged by ML; `/reports/scans?flag=ML_ANOMALY` lists the scans ML flagged.
+  - App: an **Anomaly detection (ML)** card in Admin → Reports (with a drill-down list), ML scores on report rows, and an "ML anomaly check" line in Technical details (normal / UNUSUAL / not run).
+  - e2e has 4 new ML checks (SKIP, not FAIL, when the service is off).
+  - `start-all.ps1 -Only <parts>` restarts individual windows.
+- **Verified:** jest **83**, Flutter **26** + `flutter analyze` clean, ML pytest **7**. `npm run e2e` → **46/46** with ML on, **43/46 + 3 skipped** with ML stopped. All 10 demo QR codes are unchanged; only the cloned-QR product (`000007`) gets `ML_ANOMALY`.
 
 ## Open items
 - **Physical phone test** (checklist #3): `cd mobile; flutter run --dart-define=API_BASE_URL=http://192.168.1.12:3000`.

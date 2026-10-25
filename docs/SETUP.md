@@ -94,7 +94,7 @@ Shortcut: `powershell -ExecutionPolicy Bypass -File .\start-all.ps1` opens all o
 | (T5 — ML, optional) | `cd ml; .\.venv\Scripts\python -m uvicorn app:app --host 127.0.0.1 --port 8000` | see `ml/README.md` for setup |
 | (T0 — emulators, optional) | `npx firebase-tools emulators:start --only auth,firestore --project demo-veritrace` | only without a real Firebase project |
 
-Then: `npm --prefix backend run e2e` → should print `42/42 passed`.
+Then: `npm --prefix backend run e2e` → should print `46/46 passed` (`43/46, 3 skipped` without the ML service).
 
 ## 7. Optional: Sepolia testnet
 

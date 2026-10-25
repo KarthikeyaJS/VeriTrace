@@ -10,6 +10,7 @@
   .\start-all.ps1 -Restart        # stop anything already listening on 8545/3000/8000 first
   .\start-all.ps1 -NoApp -NoMl    # servers only, no ML service
   .\start-all.ps1 -NoReset        # keep current chain + Firestore data (only if T1 was NOT restarted)
+  .\start-all.ps1 -Only backend,ml,app -Restart   # restart just those parts (chain + data untouched)
 #>
 param(
   [switch]$Wifi,
@@ -17,7 +18,8 @@ param(
   [switch]$NoApp,
   [switch]$NoMl,
   [switch]$NoReset,
-  [string]$DeviceId
+  [string]$DeviceId,
+  [string[]]$Only   # any of: chain, reset, backend, ml, app (comma-separated is fine)
 )
 
 $ErrorActionPreference = 'Stop'
@@ -25,6 +27,19 @@ $root = $PSScriptRoot
 $logs = Join-Path $root 'logs'
 New-Item -ItemType Directory -Force $logs | Out-Null
 $adb = Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe'
+
+# -Only limits which parts start; otherwise the switches above decide.
+# (`powershell -File` passes "a,b,c" as one string, so split it here.)
+$Only = @($Only | ForEach-Object { $_ -split '[,\s]+' } | Where-Object { $_ })
+foreach ($part in $Only) {
+  if (@('chain', 'reset', 'backend', 'ml', 'app') -notcontains $part) { throw "Unknown -Only part '$part'. Use: chain, reset, backend, ml, app." }
+}
+function Want([string]$part) { return (-not $Only) -or ($Only -contains $part) }
+if ($Only) {
+  if (-not (Want 'reset')) { $NoReset = $true }
+  if (-not (Want 'ml')) { $NoMl = $true }
+  if (-not (Want 'app')) { $NoApp = $true }
+}
 
 function Step($text) { Write-Host "`n>> $text" -ForegroundColor Cyan }
 function Ok($text) { Write-Host "   OK  $text" -ForegroundColor Green }
@@ -74,7 +89,10 @@ $mlPython = Join-Path $root 'ml\.venv\Scripts\python.exe'
 if (-not $NoMl -and -not (Test-Path $mlPython)) { Warn 'ml\.venv not found - skipping the ML service (see ml\README.md).'; $NoMl = $true }
 Ok 'dependencies and backend\.env present'
 
-$ports = @{ 8545 = 'Hardhat node'; 3000 = 'backend'; 8000 = 'ML service' }
+$ports = @{}
+if (Want 'chain') { $ports[8545] = 'Hardhat node' }
+if (Want 'backend') { $ports[3000] = 'backend' }
+if (-not $NoMl) { $ports[8000] = 'ML service' }
 foreach ($port in $ports.Keys) {
   if (Test-Port $port) {
     if ($Restart) {
@@ -89,14 +107,20 @@ foreach ($port in $ports.Keys) {
 Start-Sleep -Seconds 1
 
 # ---------------------------------------------------------------- T1 chain
-Step 'T1  Hardhat node (local blockchain, port 8545)'
-Start-Window 'T1 - Hardhat node' $root 'npx hardhat node --hostname 0.0.0.0' (Join-Path $logs 't1-hardhat.log')
-if (-not (Wait-Port 8545 120 'Hardhat node')) { throw 'Blockchain did not start.' }
+if (Want 'chain') {
+  Step 'T1  Hardhat node (local blockchain, port 8545)'
+  Start-Window 'T1 - Hardhat node' $root 'npx hardhat node --hostname 0.0.0.0' (Join-Path $logs 't1-hardhat.log')
+  if (-not (Wait-Port 8545 120 'Hardhat node')) { throw 'Blockchain did not start.' }
+} elseif (-not (Test-Port 8545)) {
+  Warn 'The Hardhat node (T1) is not running - start it with: .\start-all.ps1 -Only chain,reset'
+}
 
 # ---------------------------------------------------------------- T3 backend (hot-reloads contract.json, so it can start now)
-Step 'T3  Backend API (port 3000)'
-Start-Window 'T3 - Backend' (Join-Path $root 'backend') 'npm start' (Join-Path $logs 't3-backend.log')
-Wait-Port 3000 60 'Backend' | Out-Null
+if (Want 'backend') {
+  Step 'T3  Backend API (port 3000)'
+  Start-Window 'T3 - Backend' (Join-Path $root 'backend') 'npm start' (Join-Path $logs 't3-backend.log')
+  Wait-Port 3000 60 'Backend' | Out-Null
+}
 
 # ---------------------------------------------------------------- T4 ML
 if (-not $NoMl) {
@@ -150,7 +174,7 @@ if (-not $NoApp) {
 }
 
 # ---------------------------------------------------------------- extras
-Start-Process explorer.exe (Join-Path $root 'demo\qr')
+if (-not $NoApp) { Start-Process explorer.exe (Join-Path $root 'demo\qr') }
 Step 'All started'
 Write-Host '   Health:     http://localhost:3000/health'
 Write-Host '   Demo QRs:   demo\qr\ (opened in Explorer) - expected results in demo\qr\README.md'

@@ -13,9 +13,11 @@ const BASE = (process.env.E2E_BASE_URL || `http://127.0.0.1:${config.port}`).rep
 const results = [];
 let current = "setup";
 
-function record(name, pass, detail = "") {
-  results.push({ name, pass: Boolean(pass), detail: String(detail).slice(0, 90) });
+function record(name, pass, detail = "", skipped = false) {
+  results.push({ name, pass: Boolean(pass), skipped, detail: String(detail).slice(0, 90) });
 }
+
+class Skip extends Error {}
 
 async function check(name, fn) {
   current = name;
@@ -23,7 +25,8 @@ async function check(name, fn) {
     const detail = await fn();
     record(name, true, detail || "");
   } catch (err) {
-    record(name, false, err.message);
+    if (err instanceof Skip) record(name, true, err.message, true);
+    else record(name, false, err.message);
   }
 }
 
@@ -337,6 +340,39 @@ async function main() {
     return `${v.technical.scanCount} scans / ${v.technical.distinctDevices} devices`;
   });
 
+  // ----------------------------------------------------------------------- ML
+  let mlUp = false;
+  await check("ML service: online with a trained model", async () => {
+    const h = (await api("GET", "/health")).body.ml;
+    if (!h || !h.configured) throw new Skip("ML_URL not configured");
+    if (!h.ok) throw new Skip(`ML service not running at ${h.url} (verification works without it)`);
+    mlUp = true;
+    return `${h.modelVersion}, threshold ${Number(h.threshold).toFixed(3)}`;
+  });
+
+  await check("ML scores a normal journey (ML_NORMAL, result not changed)", async () => {
+    if (!mlUp) throw new Skip("ML service not running");
+    // P is over-scanned by now, so build a fresh M -> S -> R journey with a single scan
+    const res = expectStatus(await api("POST", "/products", { token: t.maker, body: productInput("E2E ML Normal") }), 201, "register");
+    const id = res.body.product.productId;
+    expectStatus(await api("POST", `/transfers/${id}/initiate`, { token: t.maker, body: { toUid: users.supplier1.uid } }), 200, "init");
+    expectStatus(await api("POST", `/transfers/${id}/confirm`, { token: t.supplier1 }), 200, "confirm");
+    expectStatus(await api("POST", `/transfers/${id}/initiate`, { token: t.supplier1, body: { toUid: users.retailer1.uid } }), 200, "init");
+    expectStatus(await api("POST", `/transfers/${id}/confirm`, { token: t.retailer1 }), 200, "confirm");
+    const fresh = (await api("POST", "/verify", { body: { payload: res.body.qrPayload, deviceId: "e2e-ml-normal" } })).body;
+    assert(fresh.technical.ml && fresh.technical.ml.features && fresh.technical.ml.features.numHandoffs === 2, "technical.ml missing");
+    assert(fresh.status === "Genuine" && fresh.reasons.some((r) => r.code === "ML_NORMAL"), `${fresh.status} ${flags(fresh)}`);
+    return `score ${fresh.technical.ml.anomalyScore.toFixed(3)} (normal)`;
+  });
+
+  await check("ML flags the cloned-QR journey (Flagged, never Suspect)", async () => {
+    if (!mlUp) throw new Skip("ML service not running");
+    const v = (await api("POST", "/verify", { body: { payload: P.qrPayload, deviceId: "e2e-ml-clone" } })).body;
+    assert(v.technical.ml.isAnomaly === true && flags(v).includes("ML_ANOMALY"), `ml=${JSON.stringify(v.technical.ml)}`);
+    assert(v.status === "Flagged", v.status);
+    return `score ${v.technical.ml.anomalyScore.toFixed(3)} > ${v.technical.ml.threshold.toFixed(3)}`;
+  });
+
   // -------------------------------------------------------------------- admin
   const email = `e2e-${Date.now()}@veritrace.demo`;
   let newUser;
@@ -404,14 +440,24 @@ async function main() {
     return JSON.stringify(s.scans.byStatus);
   });
 
+  await check("reports include ML stats and ML-flagged scans", async () => {
+    const s = (await api("GET", "/reports/summary", { token: t.admin })).body;
+    assert(s.ml && typeof s.ml.scansScored === "number" && typeof s.ml.flaggedByMl === "number", JSON.stringify(s.ml));
+    const list = expectStatus(await api("GET", "/reports/scans?flag=ML_ANOMALY", { token: t.admin }), 200, "ml scans").body;
+    assert(list.scans.every((x) => x.flags.includes("ML_ANOMALY")), "flag filter");
+    if (mlUp) assert(s.ml.ok && s.ml.flaggedByMl >= 1 && list.scans.length >= 1, `flaggedByMl=${s.ml.flaggedByMl}`);
+    return `scored ${s.ml.scansScored}, flagged ${s.ml.flaggedByMl}${mlUp ? "" : " (ML offline)"}`;
+  });
+
   // ------------------------------------------------------------------ report
   const pad = (s, n) => (s.length > n ? `${s.slice(0, n - 1)}…` : s.padEnd(n));
   console.log(`${"#".padStart(3)}  ${pad("Check", 62)} Result  Detail`);
   console.log("-".repeat(140));
-  results.forEach((r, i) => console.log(`${String(i + 1).padStart(3)}  ${pad(r.name, 62)} ${r.pass ? "PASS  " : "FAIL  "}  ${r.detail}`));
+  results.forEach((r, i) => console.log(`${String(i + 1).padStart(3)}  ${pad(r.name, 62)} ${r.skipped ? "SKIP  " : r.pass ? "PASS  " : "FAIL  "}  ${r.detail}`));
   const failed = results.filter((r) => !r.pass).length;
+  const skipped = results.filter((r) => r.skipped).length;
   console.log("-".repeat(140));
-  console.log(`${results.length - failed}/${results.length} passed${failed ? `, ${failed} FAILED` : ""}\n`);
+  console.log(`${results.length - failed - skipped}/${results.length} passed${skipped ? `, ${skipped} skipped` : ""}${failed ? `, ${failed} FAILED` : ""}\n`);
   return failed;
 }
 

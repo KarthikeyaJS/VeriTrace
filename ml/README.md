@@ -16,13 +16,27 @@ python -m venv .venv
 A trained model is committed in `model/`, so the train step is optional. The backend reads `ML_URL` (default `http://127.0.0.1:8000`); set `ML_URL=` (empty) to disable it.
 
 ## API
-- `GET /health` → `{ ok, modelVersion, metrics }`
+- `GET /health` → `{ ok, modelVersion, threshold, features, trainedOn, metrics }`
 - `POST /score`
   ```json
   { "numHandoffs": 3, "minGapSeconds": 86400, "meanGapSeconds": 172800, "secondsSinceRegistration": 2592000,
     "scanCount": 2, "distinctDevices": 1, "scansLastHour": 1, "stage": "Sold" }
   ```
   → `{ "anomalyScore": 0.52, "isAnomaly": false, "threshold": 0.56, "modelVersion": "iforest-…" }`
+
+## How it is integrated
+| Where | What happens |
+|---|---|
+| `backend/services/verification.js` | `mlFeatures()` builds the feature vector for every verification of a registered product. `evaluate()` adds `ML_ANOMALY` (warning → Flagged) or `ML_NORMAL` (ok). ML can never cause Suspect. |
+| `backend/services/ml.js` | `score()` calls `POST /score` with `ML_TIMEOUT_MS` (1.5 s). Any error, timeout or bad payload → `null`, and verification continues without ML. `health()` reads `/health`. |
+| Firestore `scans` | each scan stores `mlScored` and `ml: { anomalyScore, isAnomaly, modelVersion }` |
+| `POST /verify` response | `technical.ml = { anomalyScore, isAnomaly, threshold, modelVersion, features }`, or `null` when ML was not available |
+| `GET /reports/summary` | `ml: { configured, ok, modelVersion, threshold, metrics, scansScored, flaggedByMl }`. `GET /reports/scans?flag=ML_ANOMALY` lists the scans ML flagged |
+| App: verification result | "Why" shows the ML check; Technical details shows *"ML anomaly check: score 0.520 (threshold 0.560): normal"* or *"Not run: ML service offline"* |
+| App: Admin → Reports | **Anomaly detection (ML)** card: service online/offline, model version, verifications scored, flagged by ML (tap for the list), synthetic accuracy |
+| `GET /health` (backend) | `ml: { configured, ok, modelVersion, threshold, metrics }` (ML being down does not make the backend "degraded") |
+| Tests | `ml/test_app.py` (7), `backend/tests/ml.test.js` (score, health, timeout, errors), `backend/tests/verification.test.js` (features sent, result stored, ML only flags), e2e checks 35–37 + 46 (SKIP when the service is off) |
+| Running it | `start-all.ps1` starts it as window T4; restart just ML with `.\start-all.ps1 -Only ml -Restart` |
 
 ## Features
 `numHandoffs` (custody receipts), min/mean gap between custody changes, time since registration, scan count, distinct devices, scans in the last hour, stage at scan. Durations and counts are `log1p`-scaled, and stage is ordinal. Defined once in `features.py`.

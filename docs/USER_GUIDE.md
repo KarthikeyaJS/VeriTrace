@@ -88,7 +88,7 @@ Accounts the admin creates in the app get the password typed or generated on the
    - **Why**: every check performed, passed or failed,
    - **Product details**: name, brand, category, manufacturer, batch, serial, manufacture and expiry dates (marked *expired* when past), MRP, origin, current holder,
    - **Journey**: a timeline of every custody step with the company name and role, date and time, and the blockchain transaction,
-   - **Technical details** (tap to expand): contract address, product fingerprint, transaction hashes and block numbers, so anyone can recheck on the blockchain,
+   - **Technical details** (tap to expand): contract address, product fingerprint, transaction hashes and block numbers, so anyone can recheck on the blockchain, plus the **ML anomaly check** (score, threshold, normal/unusual, or *not run* when the ML service is offline),
    - **Scan another product** / **Home**.
 5. For a **Suspect** result the screen adds: *"Do not use this product. Keep the packaging and report it to the seller or brand."*
 
@@ -204,6 +204,7 @@ Three tabs at the bottom:
 Every product in the system, with manufacturer, stage and current holder. Tap one for its page.
 
 ### Reports
+- **Anomaly detection (ML)**: whether the ML service is online, the model version and threshold, how many verifications it scored, and how many it flagged as unusual (tap to see those scans), plus its accuracy measured on synthetic test data.
 - **Scans by result**: Genuine / Flagged / Suspect / Unverified counts. Tap a tile for the list of those scans (product, time, reasons).
 - **Recent alerts**: the latest Flagged and Suspect scans and why they were flagged.
 - **Products by stage** and **Active accounts by role**.
@@ -238,6 +239,7 @@ Roles are checked twice: by the backend before anything happens, and again by th
 | Custody changed unusually fast | Flagged | handoffs closer than the minimum gap (30 s normally; 1 s for the seeded demo) |
 | Product details are missing | Flagged | on the blockchain but not in the database |
 | Journey looks unusual (anomaly score) | Flagged | ML model (optional service); can never cause Suspect |
+| Anomaly model found nothing unusual | (passed check ✔) | shown when the ML service scored the journey as normal |
 | No blockchain record | Unverified | ID never registered: "cannot be verified", **not** "fake" |
 | Not a VeriTrace QR code | Unverified | unreadable or foreign code |
 

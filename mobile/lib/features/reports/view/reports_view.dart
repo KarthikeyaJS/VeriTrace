@@ -54,9 +54,20 @@ class _ReportsViewState extends State<ReportsView> {
                 childAspectRatio: 1.7,
                 children: [
                   for (final status in VerificationStatus.values)
-                    _StatusTile(status: status, count: s.scansByStatus[status] ?? 0, onTap: () => _openScans(context, status)),
+                    _StatusTile(
+                      status: status,
+                      count: s.scansByStatus[status] ?? 0,
+                      onTap: () => _openScans(context, title: '${status.label} scans', status: status),
+                    ),
                 ],
               ),
+              if (s.ml != null) ...[
+                const SizedBox(height: 20),
+                Text('Anomaly detection (ML)', style: theme.textTheme.titleMedium),
+                Text('Machine-learning check that runs on every verification', style: theme.textTheme.bodySmall),
+                const SizedBox(height: 8),
+                _MlCard(ml: s.ml!, onOpenFlagged: () => _openScans(context, title: 'Flagged by ML', flag: 'ML_ANOMALY')),
+              ],
               const SizedBox(height: 20),
               Text('Recent alerts', style: theme.textTheme.titleMedium),
               Text('Latest Flagged and Suspect scans', style: theme.textTheme.bodySmall),
@@ -97,8 +108,10 @@ class _ReportsViewState extends State<ReportsView> {
     );
   }
 
-  void _openScans(BuildContext context, VerificationStatus status) {
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => _ScanListScreen(status: status, repo: context.read<ReportsRepository>())));
+  void _openScans(BuildContext context, {required String title, VerificationStatus? status, String? flag}) {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => _ScanListScreen(title: title, status: status, flag: flag, repo: context.read<ReportsRepository>()),
+    ));
   }
 }
 
@@ -133,6 +146,60 @@ class _StatusTile extends StatelessWidget {
   }
 }
 
+/// ML service status, how many scans it scored/flagged, and its (synthetic) accuracy.
+class _MlCard extends StatelessWidget {
+  const _MlCard({required this.ml, required this.onOpenFlagged});
+  final MlSummary ml;
+  final VoidCallback onOpenFlagged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final (IconData icon, Color color, String label) = !ml.configured
+        ? (Icons.block, const Color(0xFF616161), 'Disabled (ML_URL not set)')
+        : ml.online
+            ? (Icons.check_circle, const Color(0xFF2E7D32), 'Online')
+            : (Icons.cloud_off, const Color(0xFF616161), 'Offline — verification continues without it');
+    String pct(double? v) => v == null ? '—' : '${(v * 100).toStringAsFixed(1)}%';
+    final model = ml.modelVersion == null
+        ? 'IsolationForest anomaly model'
+        : 'Model ${ml.modelVersion}${ml.threshold == null ? '' : ' · threshold ${ml.threshold!.toStringAsFixed(3)}'}';
+    return Card(
+      child: Column(children: [
+        ListTile(
+          leading: Icon(icon, color: color, semanticLabel: label),
+          title: Text('Service: $label'),
+          subtitle: Text(model),
+        ),
+        const Divider(height: 1),
+        ListTile(
+          dense: true,
+          leading: const Icon(Icons.analytics_outlined),
+          title: const Text('Verifications scored'),
+          trailing: Text('${ml.scansScored}', style: theme.textTheme.titleMedium),
+        ),
+        ListTile(
+          dense: true,
+          leading: const Icon(Icons.warning_amber_rounded, color: Color(0xFFB26A00)),
+          title: const Text('Flagged as unusual by ML'),
+          subtitle: const Text('Tap to see these scans'),
+          trailing: Text('${ml.flaggedByMl}', style: theme.textTheme.titleMedium),
+          onTap: onOpenFlagged,
+        ),
+        if (ml.overallRecall != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
+            child: Text(
+              'Test accuracy on synthetic data: catches ${pct(ml.overallRecall)} of injected anomalies, '
+              '${pct(ml.falsePositiveRate)} false alarms. ML can raise a result to Flagged, never to Suspect.',
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ),
+      ]),
+    );
+  }
+}
+
 class _ScanTile extends StatelessWidget {
   const _ScanTile({required this.scan});
   final ScanRecord scan;
@@ -146,6 +213,7 @@ class _ScanTile extends StatelessWidget {
         if (scan.productId != null) scan.productId!,
         formatDateTime(scan.at),
         if (scan.flags.isNotEmpty) scan.flags.join(', '),
+        if (scan.mlScore != null) 'ML ${scan.mlScore!.toStringAsFixed(2)}${scan.mlAnomaly == true ? ' (unusual)' : ''}',
       ].join(' · ')),
       trailing: StatusBadge(status: scan.status),
       onTap: scan.productId == null ? null : () => context.push('/products/${Uri.encodeComponent(scan.productId!)}'),
@@ -154,16 +222,18 @@ class _ScanTile extends StatelessWidget {
 }
 
 class _ScanListScreen extends StatelessWidget {
-  const _ScanListScreen({required this.status, required this.repo});
-  final VerificationStatus status;
+  const _ScanListScreen({required this.title, required this.repo, this.status, this.flag});
+  final String title;
+  final VerificationStatus? status;
+  final String? flag;
   final ReportsRepository repo;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => LoadCubit<List<ScanRecord>>(() => repo.scans(status: status))..load(),
+      create: (_) => LoadCubit<List<ScanRecord>>(() => repo.scans(status: status, flag: flag))..load(),
       child: Scaffold(
-        appBar: AppBar(title: Text('${status.label} scans')),
+        appBar: AppBar(title: Text(title)),
         body: BlocBuilder<LoadCubit<List<ScanRecord>>, LoadState<List<ScanRecord>>>(
           builder: (context, state) {
             final scans = state.data;
@@ -172,7 +242,7 @@ class _ScanListScreen extends StatelessWidget {
                   ? ErrorView(message: state.error!, onRetry: context.read<LoadCubit<List<ScanRecord>>>().load)
                   : const LoadingView();
             }
-            if (scans.isEmpty) return EmptyView(icon: status.icon, title: 'No ${status.label.toLowerCase()} scans');
+            if (scans.isEmpty) return EmptyView(icon: status?.icon ?? Icons.insights_outlined, title: 'No ${title.toLowerCase()} yet');
             return ListView.separated(
               itemCount: scans.length,
               separatorBuilder: (_, _) => const Divider(height: 1),

@@ -34,6 +34,7 @@ Useful switches:
 | `.\start-all.ps1 -NoApp` | servers only (e.g. testing with Postman) |
 | `.\start-all.ps1 -NoMl` | skip the ML service |
 | `.\start-all.ps1 -NoReset` | keep current data; only valid if T1 was **not** restarted |
+| `.\start-all.ps1 -Only backend,ml,app -Restart` | restart just those parts (any of `chain`, `reset`, `backend`, `ml`, `app`); e.g. `-Only app` after plugging the phone back in |
 
 All window output is also saved in `logs\t1-hardhat.log` … `logs\t5-flutter.log`.
 
@@ -61,7 +62,7 @@ flutter run -d WWPVAU6XJFH655PJ --dart-define=API_BASE_URL=http://127.0.0.1:3000
 ```
 If `adb` is not on PATH, use `$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe`.
 
-Check that everything is up: open http://localhost:3000/health and look for `"status":"ok"`. Optionally run `npm --prefix backend run e2e` (expect `42/42 passed`).
+Check that everything is up: open http://localhost:3000/health and look for `"status":"ok"`. Optionally run `npm --prefix backend run e2e` (expect `46/46 passed`; `43/46, 3 skipped` without the ML service).
 
 ## USB mode vs Wi-Fi mode
 

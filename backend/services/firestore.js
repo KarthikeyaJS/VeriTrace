@@ -159,14 +159,22 @@ async function getScanStats(productId, now = new Date()) {
   return { count: snap.size, distinctDevices: devices.size, lastHour, devices };
 }
 
-async function listScans({ statuses, limit = 50 } = {}) {
+/** Recent scans, newest first. `flag` (e.g. "ML_ANOMALY") matches scans whose flags contain it. */
+async function listScans({ statuses, flag, limit = 50 } = {}) {
   let q = db().collection("scans");
-  if (statuses && statuses.length) q = q.where("status", "in", statuses);
+  if (flag) q = q.where("flags", "array-contains", flag);
+  else if (statuses && statuses.length) q = q.where("status", "in", statuses);
   const snap = await q.get();
   return snap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((s) => !flag || !statuses || !statuses.length || statuses.includes(s.status))
     .sort((a, b) => (b.at || "").localeCompare(a.at || ""))
     .slice(0, limit);
+}
+
+async function countScansWhere(field, op, value) {
+  const agg = await db().collection("scans").where(field, op, value).count().get();
+  return agg.data().count;
 }
 
 async function countScansByStatus(statuses) {
@@ -243,6 +251,7 @@ module.exports = {
   addScan,
   getScanStats,
   listScans,
+  countScansWhere,
   countScansByStatus,
   addAudit,
   getVerificationSettings,

@@ -157,16 +157,18 @@ Only the current holder while a transfer is pending. → `{ "txHash", "blockNumb
 { "payload": "veritrace://verify?id=VT-2026-000002&h=…", "deviceId": "anon-uuid" }
 { "productId": "VT-2026-000002", "deviceId": "anon-uuid" }
 ```
-Every call is recorded in `scans` (`productId, at, deviceId, status, reasons, flags`).
+Every call is recorded in `scans` (`productId, at, deviceId, status, reasons, flags, mlScored, ml`).
 ```json
 {
   "status": "Genuine | Flagged | Suspect | Unverified",
   "reasons": [ { "code": "QR_HASH_MATCH", "severity": "ok", "message": "QR fingerprint matches the blockchain record." } ],
   "product": Product | { "productId": "…" } | null,
   "journey": [JourneyEvent],
-  "technical": { "contractAddress", "chainId", "network", "qrHash", "productHash", "recomputedHash", "registerTxHash", "registerBlock", "latestBlock", "scanCount", "distinctDevices", "ml": { "anomalyScore", "isAnomaly", "modelVersion" } | null }
+  "technical": { "contractAddress", "chainId", "network", "qrHash", "productHash", "recomputedHash", "registerTxHash", "registerBlock", "latestBlock", "scanCount", "distinctDevices", "ml": { "anomalyScore", "isAnomaly", "threshold", "modelVersion", "features": { …sent to the model } } | null }
 }
 ```
+`technical.ml` is `null` when the ML service is disabled, offline or slower than `ML_TIMEOUT_MS`: the result is then based on the other checks only.
+
 Severity → status: any `critical` ⇒ **Suspect**; else any `warning` ⇒ **Flagged**; else **Genuine**. `Unverified` short-circuits.
 
 | code | severity | rule |
@@ -184,6 +186,7 @@ Severity → status: any `critical` ⇒ **Suspect**; else any `warning` ⇒ **Fl
 | `FAST_HANDOFF` | warning | a custody gap < `minHandoffGapSeconds` (30; seed sets 1) |
 | `METADATA_MISSING` | warning | chain record but no Firestore doc |
 | `ML_ANOMALY` | warning | ML service says anomaly (never critical) |
+| `ML_NORMAL` | ok | ML service scored the journey as normal |
 | `ON_CHAIN`, `QR_HASH_MATCH`, `METADATA_MATCH`, `HISTORY_CONSISTENT`, `AT_RETAILER`, `SOLD` | ok | passed checks |
 | `QR_NOT_CHECKED` | info | manual ID entry |
 
@@ -197,11 +200,15 @@ Thresholds: `.env` defaults, overridden by Firestore `settings/verification` (wr
   "products": { "total": 11, "byStage": { "Manufactured": 1, "AtSupplier": 2, "AtRetailer": 5, "Sold": 3, "NotOnChain": 0 } },
   "users": { "total": 8, "active": 7, "byRole": { "admin": 1, "manufacturer": 2, "supplier": 2, "retailer": 2 } },
   "recentAlerts": [ { "id", "productId", "productName", "at", "deviceId", "status": "Suspect", "reasons": [...], "flags": ["QR_HASH_MISMATCH"] } ],
-  "settings": { "scanFlagThreshold": 10, "deviceFlagThreshold": 5, "minHandoffGapSeconds": 1 } }
+  "settings": { "scanFlagThreshold": 10, "deviceFlagThreshold": 5, "minHandoffGapSeconds": 1 },
+  "ml": { "configured": true, "ok": true, "url": "http://127.0.0.1:8000", "modelVersion": "iforest-…", "threshold": 0.56,
+          "metrics": { "holdoutFalsePositiveRate": 0.01, "overallRecall": 0.92, "recallByKind": {…} },
+          "scansScored": 18, "flaggedByMl": 9 } }
 ```
 
-### `GET /reports/scans?status=Genuine|Flagged|Suspect|Unverified|all&limit=50`
-→ `{ "scans": [ …same shape as recentAlerts ] }` newest first (limit ≤ 200).
+### `GET /reports/scans?status=Genuine|Flagged|Suspect|Unverified|all&flag=ML_ANOMALY&limit=50`
+→ `{ "scans": [ …same shape as recentAlerts, plus "ml": { anomalyScore, isAnomaly, modelVersion } | null ] }` newest first (limit ≤ 200).
+`flag` (optional) returns only scans whose flags contain that reason code, e.g. `ML_ANOMALY` = scans the ML model flagged.
 
 ## ML service (internal, `ml/`)
-`POST http://127.0.0.1:8000/score` with `{ numHandoffs, minGapSeconds, meanGapSeconds, secondsSinceRegistration, scanCount, distinctDevices, scansLastHour, stage }` → `{ anomalyScore, isAnomaly, threshold, modelVersion }`. `GET /health` → `{ ok, modelVersion, metrics }`. Called by the backend with a 1.5 s timeout; failures are ignored.
+`POST http://127.0.0.1:8000/score` with `{ numHandoffs, minGapSeconds, meanGapSeconds, secondsSinceRegistration, scanCount, distinctDevices, scansLastHour, stage }` → `{ anomalyScore, isAnomaly, threshold, modelVersion }`. `GET /health` → `{ ok, modelVersion, threshold, features, trainedOn, metrics }`. Called by the backend with a 1.5 s timeout; failures are ignored (verification continues, `technical.ml = null`, `mlScored = false`).

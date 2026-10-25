@@ -223,8 +223,12 @@ describe("evaluate — Flagged", () => {
   });
 
   test("ML not anomalous / unavailable leaves Genuine", () => {
-    expect(evaluate(scenario("Sold", { ml: { anomalyScore: 0.1, isAnomaly: false } })).status).toBe("Genuine");
-    expect(evaluate(scenario("Sold", { ml: null })).status).toBe("Genuine");
+    const scored = evaluate(scenario("Sold", { ml: { anomalyScore: 0.1, isAnomaly: false } }));
+    expect(scored.status).toBe("Genuine");
+    expect(scored.reasons.find((r) => r.code === "ML_NORMAL").severity).toBe("ok");
+    const offline = evaluate(scenario("Sold", { ml: null }));
+    expect(offline.status).toBe("Genuine");
+    expect(codes(offline)).not.toContain("ML_NORMAL");
   });
 });
 
@@ -312,7 +316,21 @@ describe("verify() orchestration", () => {
   });
 
   test("ML failure does not break verification", async () => {
-    const { deps } = makeDeps({ ml: { score: jest.fn(async () => null) } });
-    expect((await verify({ productId: metadata.productId }, deps)).status).toBe("Genuine");
+    const { deps, scans } = makeDeps({ ml: { score: jest.fn(async () => null) } });
+    const r = await verify({ productId: metadata.productId }, deps);
+    expect(r.status).toBe("Genuine");
+    expect(r.technical.ml).toBeNull();
+    expect(scans[0]).toMatchObject({ mlScored: false, ml: null });
+  });
+
+  test("ML score is sent the journey features, returned in technical details and stored with the scan", async () => {
+    const score = jest.fn(async () => ({ anomalyScore: 0.7, isAnomaly: true, threshold: 0.56, modelVersion: "iforest-test" }));
+    const { deps, scans } = makeDeps({ ml: { score } });
+    const r = await verify({ productId: metadata.productId, deviceId: "d1" }, deps);
+    expect(score).toHaveBeenCalledWith(expect.objectContaining({ numHandoffs: 2, scanCount: 1, distinctDevices: 1, stage: "AtRetailer" }));
+    expect(r.status).toBe("Flagged");
+    expect(r.technical.ml).toMatchObject({ anomalyScore: 0.7, isAnomaly: true, threshold: 0.56, features: expect.objectContaining({ scanCount: 1 }) });
+    expect(scans[0]).toMatchObject({ mlScored: true, ml: { anomalyScore: 0.7, isAnomaly: true, modelVersion: "iforest-test" } });
+    expect(scans[0].flags).toContain("ML_ANOMALY");
   });
 });
