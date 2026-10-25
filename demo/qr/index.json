@@ -1,0 +1,85 @@
+{
+  "generatedAt": "2026-10-25T07:01:14.355Z",
+  "entries": [
+    {
+      "file": "01_VT-2026-000001_sold-genuine.png",
+      "productId": "VT-2026-000001",
+      "name": "Aurora X1 Smartphone",
+      "expected": "Genuine",
+      "story": "Full journey M → S1 → S2 → R → Sold",
+      "payload": "veritrace://verify?id=VT-2026-000001&h=0c58c649573eb7ababfc61892cee4fdc45771e675a74af35faaaae3f38887c99"
+    },
+    {
+      "file": "02_VT-2026-000002_at-retailer-genuine.png",
+      "productId": "VT-2026-000002",
+      "name": "Aurora SoundPods Pro",
+      "expected": "Genuine",
+      "story": "On the shelf at CityMart Bengaluru",
+      "payload": "veritrace://verify?id=VT-2026-000002&h=b6724a07305db535ab85d3006122da3b10dae3fe6ed6d4cc50318ace74ce113b"
+    },
+    {
+      "file": "03_VT-2026-000003_at-supplier-flagged.png",
+      "productId": "VT-2026-000003",
+      "name": "Aurora 65W GaN Charger",
+      "expected": "Flagged",
+      "story": "Still at Southern Distributors — a consumer should not have it yet",
+      "payload": "veritrace://verify?id=VT-2026-000003&h=b0649ff60deadf0d7c5452ebbdc47d4f0381c96d68913b3f155b049f691e2bdb"
+    },
+    {
+      "file": "04_VT-2026-000004_pending-transfer-flagged.png",
+      "productId": "VT-2026-000004",
+      "name": "Aurora PowerBank 20000",
+      "expected": "Flagged",
+      "story": "Dispatched by Metro Wholesale to CityMart, not yet confirmed",
+      "payload": "veritrace://verify?id=VT-2026-000004&h=c652ed5f732416962a79c04d21580f34436615314582f39716ff19a33a0ae711"
+    },
+    {
+      "file": "05_VT-2026-000005_tampered-suspect.png",
+      "productId": "VT-2026-000005",
+      "name": "Nila Paracetamol 500 mg (10 tablets)",
+      "expected": "Suspect",
+      "story": "Database record altered after registration (expiry extended)",
+      "payload": "veritrace://verify?id=VT-2026-000005&h=9ebcb7cedb55f06656a4dc5d0ddf715a09c1b7be1a69eeee833324f707ce09ec"
+    },
+    {
+      "file": "06_VT-2026-000006_expired-flagged.png",
+      "productId": "VT-2026-000006",
+      "name": "Nila Cough Syrup 100 ml",
+      "expected": "Flagged",
+      "story": "Expired pharmaceutical still on sale",
+      "payload": "veritrace://verify?id=VT-2026-000006&h=54301fca97547ffb675cbb7e0632d4d7b98390f701a7339b70ab57a01963f654"
+    },
+    {
+      "file": "07_VT-2026-000007_over-scanned-flagged.png",
+      "productId": "VT-2026-000007",
+      "name": "Aurora Buds Lite",
+      "expected": "Flagged",
+      "story": "Scanned 14 times from 8 devices — QR probably copied",
+      "payload": "veritrace://verify?id=VT-2026-000007&h=b08bab397c4e24ae0a76c0380bc6b5a06cce1e9d63396ad8ffd8642013979180"
+    },
+    {
+      "file": "08_VT-2026-000008_manufactured-ready.png",
+      "productId": "VT-2026-000008",
+      "name": "Aurora Tab 11",
+      "expected": "Flagged",
+      "story": "Just manufactured — use it to demo a live transfer",
+      "payload": "veritrace://verify?id=VT-2026-000008&h=51b3d7a96419f855b8ab1b3e6ac931a98f23086d59e777a2b0ff9d4795db64ef"
+    },
+    {
+      "file": "09_FORGED_VT-2026-000002_forged-suspect.png",
+      "productId": "VT-2026-000002",
+      "name": "Aurora SoundPods Pro (forged label)",
+      "expected": "Suspect",
+      "story": "Real product ID, fake fingerprint",
+      "payload": "veritrace://verify?id=VT-2026-000002&h=deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+    },
+    {
+      "file": "10_UNKNOWN_VT-2026-999999_unknown-unverified.png",
+      "productId": "VT-2026-999999",
+      "name": "Unknown product",
+      "expected": "Unverified",
+      "story": "ID was never registered",
+      "payload": "veritrace://verify?id=VT-2026-999999&h=0000000000000000000000000000000000000000000000000000000000000001"
+    }
+  ]
+}

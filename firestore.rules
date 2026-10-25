@@ -1,0 +1,16 @@
+rules_version = '2';
+
+// VeriTrace: the mobile app talks to the backend for everything.
+// The backend uses the Admin SDK, which bypasses these rules.
+// Direct client access is denied except a signed-in user reading their own profile.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

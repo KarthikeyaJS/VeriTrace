@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+serviceAccountKey.json
+*serviceAccount*.json
+google-services.json
+GoogleService-Info.plist
+mobile/lib/firebase_options.dart
+
+# Hardhat
+artifacts/
+cache/
+typechain-types/
+coverage/
+coverage.json
+
+# Firebase emulator
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+emulator-data/
+
+# Flutter / Android build outputs
+mobile/build/
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/app/build/
+mobile/android/key.properties
+*.jks
+*.keystore
+*.apk
+*.aab
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+
+# Generated per deployment / regenerable
+backend/config/contract.json
+ml/data/
+
+# start-all.ps1 window logs
+logs/

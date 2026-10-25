@@ -1,0 +1,37 @@
+{
+  "name": "veritrace-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "VeriTrace backend: Express API, custodial wallets, Firestore, verification rules",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "jest --runInBand",
+    "seed": "node scripts/seed.js",
+    "reset-demo": "node scripts/reset-demo.js",
+    "e2e": "node scripts/e2e.js",
+    "qr": "node scripts/generate-demo-qr.js",
+    "deploy:rules": "node scripts/deploy-rules.js"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ]
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "ethers": "^6.17.0",
+    "express": "^4.22.3",
+    "firebase-admin": "^13.10.0",
+    "qrcode": "^1.5.4",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.3.1"
+  }
+}

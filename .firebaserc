@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "default": "veritrace-198d5",
+    "demo": "demo-veritrace"
+  }
+}

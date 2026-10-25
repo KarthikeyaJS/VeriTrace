@@ -1,0 +1,27 @@
+{
+  "modelVersion": "iforest-20261024171919",
+  "features": [
+    "numHandoffs",
+    "log_minGapSeconds",
+    "log_meanGapSeconds",
+    "log_secondsSinceRegistration",
+    "log_scanCount",
+    "log_distinctDevices",
+    "log_scansLastHour",
+    "stage"
+  ],
+  "threshold": 0.5601230396180235,
+  "trainedOn": "16000 synthetic normal + 325 injected anomalous journeys (seeded RNG)",
+  "metrics": {
+    "holdoutFalsePositiveRate": 0.01,
+    "recallByKind": {
+      "clone": 1.0,
+      "burst": 0.9825,
+      "laundering": 0.63,
+      "ghost": 0.9925,
+      "zombie": 1.0
+    },
+    "overallRecall": 0.921
+  },
+  "note": "Synthetic data only \u2014 not validated on real supply-chain data."
+}
