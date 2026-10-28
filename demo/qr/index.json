@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-25T11:16:36.858Z",
+  "generatedAt": "2026-10-25T13:02:37.695Z",
   "entries": [
     {
       "file": "01_VT-2026-000001_sold-genuine.png",
@@ -80,6 +80,54 @@
       "expected": "Unverified",
       "story": "ID was never registered",
       "payload": "veritrace://verify?id=VT-2026-999999&h=0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "file": "11_VT-2026-000009_vitamin-sold.png",
+      "productId": "VT-2026-000009",
+      "name": "Nila Vitamin C 1000 mg (30 tablets)",
+      "expected": "Genuine",
+      "story": "Sold by QuickCare Pharmacy",
+      "payload": "veritrace://verify?id=VT-2026-000009&h=cc4a5724c74c86ea277c3d5a402f4d64bd98fb00249a31d9d5cf8dad2c289794"
+    },
+    {
+      "file": "12_VT-2026-000010_sunscreen-at-retailer.png",
+      "productId": "VT-2026-000010",
+      "name": "Nila SunShield SPF 50 Sunscreen 100 ml",
+      "expected": "Genuine",
+      "story": "On the shelf at QuickCare Pharmacy",
+      "payload": "veritrace://verify?id=VT-2026-000010&h=7c0f20b72138067613bd5a7559f9ec1da6dc9d2707643dc16f11eda4cb006e9c"
+    },
+    {
+      "file": "13_VT-2026-000011_ors-at-retailer.png",
+      "productId": "VT-2026-000011",
+      "name": "Nila ORS Electrolyte Drink 1 L",
+      "expected": "Genuine",
+      "story": "At CityMart Bengaluru",
+      "payload": "veritrace://verify?id=VT-2026-000011&h=8351875ca9e64c1da89086fc90b535ce4ba67ea0b163ec59323dbe5a1c288830"
+    },
+    {
+      "file": "14_VT-2026-000012_dashcam-sold.png",
+      "productId": "VT-2026-000012",
+      "name": "Aurora DriveCam D2 Dash Camera",
+      "expected": "Genuine",
+      "story": "Two distributors, then sold by CityMart",
+      "payload": "veritrace://verify?id=VT-2026-000012&h=041ca57fc0cc8b9fd3075d6394cbd22f883d3d7407719c90730a7c53288f9b0c"
+    },
+    {
+      "file": "15_VT-2026-000013_luxury-watch-at-retailer.png",
+      "productId": "VT-2026-000013",
+      "name": "Aurora Chronos Titanium Smartwatch",
+      "expected": "Genuine",
+      "story": "Premium item on display at CityMart",
+      "payload": "veritrace://verify?id=VT-2026-000013&h=4229380f3b6dd5a22545f925a8263d3603ce5a81cf3c68072380257ede9b16a9"
+    },
+    {
+      "file": "16_VT-2026-000014_smart-bulb-ready.png",
+      "productId": "VT-2026-000014",
+      "name": "Aurora Smart Bulb 9W (4-pack)",
+      "expected": "Flagged",
+      "story": "Just manufactured — a second item for live transfers",
+      "payload": "veritrace://verify?id=VT-2026-000014&h=2c81fca96a1811d90ed8913a91f92c998ae4d75f765f2b507a71f37d3eb466b4"
     }
   ]
 }

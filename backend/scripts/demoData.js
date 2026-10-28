@@ -150,7 +150,127 @@ const DEMO_PRODUCTS = [
   },
 ];
 
+// Everyday catalogue: more categories so dashboards, lists and reports look lived-in.
+// Registered after the scenario products, so they get IDs VT-<year>-000009 onwards.
+const DEMO_CATALOG = [
+  {
+    slug: "vitamin-sold",
+    expected: "Genuine",
+    maker: "maker2",
+    story: "Sold by QuickCare Pharmacy",
+    input: {
+      name: "Nila Vitamin C 1000 mg (30 tablets)",
+      brand: "Nila",
+      category: "Pharmaceuticals",
+      batchNumber: "NVC-2026-08",
+      manufactureDate: daysAgo(50),
+      expiryDate: daysAhead(2 * 365),
+      mrp: 299,
+      description: "Effervescent vitamin C supplement.",
+    },
+    path: ["->supplier1", "supplier1", "->retailer2", "retailer2", "sold"],
+  },
+  {
+    slug: "sunscreen-at-retailer",
+    expected: "Genuine",
+    maker: "maker2",
+    story: "On the shelf at QuickCare Pharmacy",
+    input: {
+      name: "Nila SunShield SPF 50 Sunscreen 100 ml",
+      brand: "Nila",
+      category: "Cosmetics",
+      batchNumber: "NSS-2026-03",
+      manufactureDate: daysAgo(70),
+      expiryDate: daysAhead(700),
+      mrp: 449,
+    },
+    path: ["->supplier2", "supplier2", "->retailer2", "retailer2"],
+  },
+  {
+    slug: "ors-at-retailer",
+    expected: "Genuine",
+    maker: "maker2",
+    story: "At CityMart Bengaluru",
+    input: {
+      name: "Nila ORS Electrolyte Drink 1 L",
+      brand: "Nila",
+      category: "Food & Beverage",
+      batchNumber: "NOR-2026-12",
+      manufactureDate: daysAgo(15),
+      expiryDate: daysAhead(270),
+      mrp: 110,
+    },
+    path: ["->supplier2", "supplier2", "->retailer1", "retailer1"],
+  },
+  {
+    slug: "dashcam-sold",
+    expected: "Genuine",
+    maker: "maker",
+    story: "Two distributors, then sold by CityMart",
+    input: {
+      name: "Aurora DriveCam D2 Dash Camera",
+      brand: "Aurora",
+      category: "Automotive Parts",
+      batchNumber: "ADC-2026-06",
+      serialNumber: "ADC-007731",
+      manufactureDate: daysAgo(80),
+      mrp: 5999,
+      description: "1440p dash camera with night vision.",
+    },
+    path: ["->supplier1", "supplier1", "->supplier2", "supplier2", "->retailer1", "retailer1", "sold"],
+  },
+  {
+    slug: "luxury-watch-at-retailer",
+    expected: "Genuine",
+    maker: "maker",
+    story: "Premium item on display at CityMart",
+    input: {
+      name: "Aurora Chronos Titanium Smartwatch",
+      brand: "Aurora",
+      category: "Luxury Goods",
+      batchNumber: "ACT-2026-01",
+      serialNumber: "ACT-000019",
+      manufactureDate: daysAgo(35),
+      mrp: 64999,
+      description: "Limited edition, titanium case, sapphire glass.",
+    },
+    path: ["->supplier1", "supplier1", "->retailer1", "retailer1"],
+  },
+  {
+    slug: "smart-bulb-ready",
+    expected: "Flagged",
+    maker: "maker",
+    story: "Just manufactured — a second item for live transfers",
+    input: {
+      name: "Aurora Smart Bulb 9W (4-pack)",
+      brand: "Aurora",
+      category: "Electronics",
+      batchNumber: "ASB-2026-10",
+      manufactureDate: daysAgo(1),
+      mrp: 1299,
+    },
+    path: [],
+  },
+];
+
 const FORGED = { slug: "forged-suspect", expected: "Suspect", basedOn: "at-retailer-genuine", fakeHash: "deadbeef".repeat(8) };
 const UNKNOWN = { slug: "unknown-unverified", expected: "Unverified", productId: "VT-2026-999999" };
 
-module.exports = { DEMO_PASSWORD, DEMO_ACCOUNTS, DEMO_PRODUCTS, FORGED, UNKNOWN };
+// Verifications recorded during seeding so the admin Reports start with realistic activity.
+// Each product gets at most 1-2 scans, far below the clone threshold (10).
+const DEMO_ACTIVITY = [
+  { slug: "sold-genuine", device: "demo-phone-1" },
+  { slug: "at-retailer-genuine", device: "demo-phone-2" },
+  { slug: "at-supplier-flagged", device: "demo-phone-3" },
+  { slug: "tampered-suspect", device: "demo-phone-1" },
+  { slug: "expired-flagged", device: "demo-phone-2" },
+  { slug: "vitamin-sold", device: "demo-phone-3" },
+  { slug: "sunscreen-at-retailer", device: "demo-phone-1" },
+  { slug: "ors-at-retailer", device: "demo-phone-2" },
+  { slug: "dashcam-sold", device: "demo-phone-3" },
+  { slug: "luxury-watch-at-retailer", device: "demo-phone-1" },
+  { slug: "forged-suspect", device: "demo-phone-2" },
+  { slug: "unknown-unverified", device: "demo-phone-3" },
+];
+
+module.exports = { DEMO_PASSWORD, DEMO_ACCOUNTS, DEMO_PRODUCTS, DEMO_CATALOG, FORGED, UNKNOWN, DEMO_ACTIVITY };

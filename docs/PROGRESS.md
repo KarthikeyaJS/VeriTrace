@@ -81,6 +81,22 @@
   - `start-all.ps1 -Only <parts>` restarts individual windows.
 - **Verified:** jest **83**, Flutter **26** + `flutter analyze` clean, ML pytest **7**. `npm run e2e` → **46/46** with ML on, **43/46 + 3 skipped** with ML stopped. All 10 demo QR codes are unchanged; only the cloned-QR product (`000007`) gets `ML_ANOMALY`.
 
+## Client hand-off package (2026-10-25)
+- **Demo data:**
+  - 6 everyday catalogue products added after the 8 scenario products: Pharmaceuticals, Cosmetics, Food & Beverage, Automotive Parts, Luxury Goods, plus a second "ready to ship" item. 14 products and 16 QR images in total.
+  - The over-scanned product's history now carries realistic statuses (Genuine up to scan 10, then Flagged).
+  - 12 real verifications are recorded during seeding (7 Genuine, 2 Flagged, 2 Suspect, 1 Unverified), so admin Reports start populated.
+  - QR numbering is unchanged for the demo script (01–10); the catalogue is 11–16.
+- **Scripts:**
+  - `setup.ps1` (one-time): Node check, `npm ci`, ML venv with version-aware requirements and a model retrain if needed, downloads `adb` if missing, creates `backend\.env` from the key file.
+  - `start-all.ps1`: finds `adb` anywhere, and installs + opens the prebuilt `dist\VeriTrace.apk` when Flutter isn't installed (`-UseApk`).
+  - `stop-all.ps1`.
+  - `package-client.ps1`: builds `dist\VeriTrace-client-<date>.zip`; Firebase keys only with `-IncludeFirebaseKeys`.
+- **Docs:** `START_HERE.md` (client guide: what you receive, one-time setup, every-time steps, demo data, Wi-Fi option, troubleshooting).
+- **Verified as the client would run it:** unzipped the package into a clean folder outside the workspace, added the key files, ran `setup.ps1` (all steps OK), then `start-all.ps1` (chain, backend, ML, seed OK) → `npm run e2e` **46/46**. `start-all.ps1 -Only app -UseApk` installed and opened the **release** APK on an Android 13 emulator: manual-ID verification (Genuine, with the ML check), admin login against Firebase `veritrace-198d5`, and Reports with the ML card all work. Final checks: Hardhat 25, jest 83, Flutter 26 + analyze clean, pytest 7, all 16 demo QR codes as expected.
+- **Not yet verified on a physical phone with the release build:** camera QR scanning. The debug build was tested on the developer's phone; run `.\start-all.ps1 -Only app -UseApk` once with the phone connected to confirm.
+- **Build:** the release APK contains arm64 + x86_64 code (phones + emulators). Gradle heap lowered to 3 GB (the 8 GB template default plus a nearly full C: drive crashed the release build through pagefile growth).
+
 ## Open items
 - **Physical phone test** (checklist #3): `cd mobile; flutter run --dart-define=API_BASE_URL=http://192.168.1.12:3000`.
 - **Sepolia**: untested without an RPC URL and funded key.

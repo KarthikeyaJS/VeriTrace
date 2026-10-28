@@ -1,5 +1,7 @@
 # How to run VeriTrace (step by step)
 
+> **Client / new laptop:** follow [START_HERE.md](../START_HERE.md): `setup.ps1` once, then `start-all.ps1` each time and `stop-all.ps1` when done. Without the Flutter SDK, `start-all.ps1` installs the prebuilt `dist\VeriTrace.apk` instead of building the app.
+
 One-time installation and Firebase setup are in [SETUP.md](SETUP.md). On this laptop they are done:
 dependencies are installed, `backend\.env` points at Firebase project `veritrace-198d5`, and the key files are in place.
 

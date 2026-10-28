@@ -1,8 +1,10 @@
 <#
 .SYNOPSIS
   Starts the whole VeriTrace stack, each part in its own window:
-    T1 Hardhat node  ->  T2 deploy + seed (npm run reset-demo)  ->  T3 backend  ->  T4 ML service  ->  T5 Flutter app on the phone
+    T1 Hardhat node  ->  T3 backend  ->  T4 ML service  ->  T2 deploy + seed (npm run reset-demo)  ->  T5 app on the phone
   Output of every window is also written to logs\*.log.
+  The app step builds from source when the Flutter SDK is installed; otherwise (or with -UseApk) it installs
+  the prebuilt dist\VeriTrace.apk with adb and opens it.
 
 .EXAMPLE
   .\start-all.ps1                 # phone on USB: backend reached through `adb reverse` (no firewall change needed)
@@ -11,6 +13,7 @@
   .\start-all.ps1 -NoApp -NoMl    # servers only, no ML service
   .\start-all.ps1 -NoReset        # keep current chain + Firestore data (only if T1 was NOT restarted)
   .\start-all.ps1 -Only backend,ml,app -Restart   # restart just those parts (chain + data untouched)
+  .\start-all.ps1 -UseApk         # install dist\VeriTrace.apk instead of building with Flutter
 #>
 param(
   [switch]$Wifi,
@@ -19,6 +22,7 @@ param(
   [switch]$NoMl,
   [switch]$NoReset,
   [string]$DeviceId,
+  [switch]$UseApk,
   [string[]]$Only   # any of: chain, reset, backend, ml, app (comma-separated is fine)
 )
 
@@ -26,7 +30,18 @@ $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $logs = Join-Path $root 'logs'
 New-Item -ItemType Directory -Force $logs | Out-Null
-$adb = Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe'
+
+# adb: PATH, then ANDROID_HOME / ANDROID_SDK_ROOT / default SDK, then tools\platform-tools (downloaded by setup.ps1)
+function Find-Adb {
+  $cmd = Get-Command adb -ErrorAction SilentlyContinue
+  if ($cmd) { return $cmd.Source }
+  $candidates = @($env:ANDROID_HOME, $env:ANDROID_SDK_ROOT, (Join-Path $env:LOCALAPPDATA 'Android\Sdk')) |
+    Where-Object { $_ } | ForEach-Object { Join-Path $_ 'platform-tools\adb.exe' }
+  $candidates = @($candidates) + (Join-Path $root 'tools\platform-tools\adb.exe')
+  foreach ($c in $candidates) { if (Test-Path $c) { return $c } }
+  return $null
+}
+$adb = Find-Adb
 
 # -Only limits which parts start; otherwise the switches above decide.
 # (`powershell -File` passes "a,b,c" as one string, so split it here.)
@@ -151,25 +166,52 @@ if (-not $NoReset) {
 
 # ---------------------------------------------------------------- T5 app
 if (-not $NoApp) {
-  Step 'T5  Flutter app on the phone'
-  if (-not $DeviceId) {
-    $line = (& $adb devices) | Where-Object { $_ -match '^(\S+)\s+device$' } | Select-Object -First 1
-    if ($line -match '^(\S+)\s+device$') { $DeviceId = $Matches[1] }
-  }
-  if (-not $DeviceId) {
-    Warn 'No Android device found (adb devices). Connect the phone with USB debugging on, then run this script with -NoReset.'
+  $apk = Join-Path $root 'dist\VeriTrace.apk'
+  $hasFlutter = [bool](Get-Command flutter -ErrorAction SilentlyContinue) -and (Test-Path (Join-Path $root 'mobile\pubspec.yaml'))
+  $apkMode = $UseApk -or -not $hasFlutter
+  $ip = (Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -and $_.NetAdapter.Status -eq 'Up' } | Select-Object -First 1).IPv4Address.IPAddress
+  if ($apkMode) { Step 'T5  App on the phone (prebuilt dist\VeriTrace.apk)' } else { Step 'T5  Flutter app on the phone (build from source)' }
+
+  if (-not $adb) {
+    Warn 'adb (Android platform-tools) not found - run .\setup.ps1 once, or install Android Studio.'
+    Warn "Without adb: copy dist\VeriTrace.apk to the phone and install it, then in the app tap Business login -> tune icon and enter http://${ip}:3000 (Wi-Fi mode)."
   } else {
-    if ($Wifi) {
-      $ip = (Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -and $_.NetAdapter.Status -eq 'Up' } | Select-Object -First 1).IPv4Address.IPAddress
-      $apiUrl = "http://${ip}:3000"
-      Ok "Wi-Fi mode: the app will call $apiUrl (phone and laptop must share the Wi-Fi; firewall must allow port 3000)"
-    } else {
-      & $adb -s $DeviceId reverse tcp:3000 tcp:3000 | Out-Null
-      $apiUrl = 'http://127.0.0.1:3000'
-      Ok "USB mode: adb reverse tcp:3000 -> phone uses $apiUrl (keep the cable connected)"
+    if (-not $DeviceId) {
+      $line = (& $adb devices) | Where-Object { $_ -match '^(\S+)\s+device$' } | Select-Object -First 1
+      if ($line -match '^(\S+)\s+device$') { $DeviceId = $Matches[1] }
     }
-    Start-Window 'T5 - Flutter app' (Join-Path $root 'mobile') "flutter run -d $DeviceId --dart-define=API_BASE_URL=$apiUrl" (Join-Path $logs 't5-flutter.log')
-    Ok "building and installing on $DeviceId (first build takes a few minutes; press r / R / q in the T5 window)"
+    if (-not $DeviceId) {
+      Warn 'No phone found. Connect it with a USB cable, enable USB debugging and accept the prompt on the phone, then run:  .\start-all.ps1 -Only app'
+    } elseif ($apkMode -and -not (Test-Path $apk)) {
+      Warn 'dist\VeriTrace.apk is missing and the Flutter SDK is not installed - ask the developer for the APK.'
+    } else {
+      if ($Wifi) {
+        $apiUrl = "http://${ip}:3000"
+        Ok "Wi-Fi mode: the app must use $apiUrl (phone and laptop on the same Wi-Fi; firewall must allow port 3000)"
+      } else {
+        & $adb -s $DeviceId reverse tcp:3000 tcp:3000 | Out-Null
+        $apiUrl = 'http://127.0.0.1:3000'
+        Ok "USB mode: adb reverse tcp:3000 -> phone uses $apiUrl (keep the cable connected)"
+      }
+      if ($apkMode) {
+        Write-Host "   ..  installing dist\VeriTrace.apk on $DeviceId (about 30 s)"
+        $out = (& $adb -s $DeviceId install -r $apk 2>&1) -join ' '
+        if ($out -match 'INSTALL_FAILED_UPDATE_INCOMPATIBLE|signatures do not match') {
+          & $adb -s $DeviceId uninstall com.veritrace.app | Out-Null
+          $out = (& $adb -s $DeviceId install $apk 2>&1) -join ' '
+        }
+        if ($out -match 'Success') {
+          & $adb -s $DeviceId shell am start -n com.veritrace.app/.MainActivity | Out-Null
+          Ok 'VeriTrace installed and opened on the phone'
+          if ($Wifi) { Warn "In the app: Business login -> tune icon (top right) -> enter $apiUrl -> Save (the APK defaults to USB mode)." }
+        } else {
+          Warn "APK install failed: $out"
+        }
+      } else {
+        Start-Window 'T5 - Flutter app' (Join-Path $root 'mobile') "flutter run -d $DeviceId --dart-define=API_BASE_URL=$apiUrl" (Join-Path $logs 't5-flutter.log')
+        Ok "building and installing on $DeviceId (first build takes a few minutes; press r / R / q in the T5 window)"
+      }
+    }
   }
 }
 

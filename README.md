@@ -10,6 +10,15 @@ Flutter app (Android, Bloc) ──HTTP/JSON──> Node.js + Express ──ether
                                                └── Python ML service (optional anomaly score)
 ```
 
+> **Running the demo on a new laptop?** Read **[START_HERE.md](START_HERE.md)**: one-time `setup.ps1`, then `start-all.ps1` each time. The app comes prebuilt (`dist\VeriTrace.apk`), so Flutter is not needed.
+
+| Script | When |
+|---|---|
+| `setup.ps1` | once per laptop: installs dependencies, ML environment, `adb`, creates `backend\.env` |
+| `start-all.ps1` | every run: blockchain, backend, ML, fresh demo data, app on the phone (each part in its own window) |
+| `stop-all.ps1` | when finished |
+| `package-client.ps1` | developer only: builds `dist\VeriTrace-client-<date>.zip` to send to the client |
+
 ## Features
 - **Smart contract** `BlockAuth.sol`: roles (Admin/Manufacturer/Supplier/Retailer), two-step custody transfers (initiate → confirm), cancel, mark sold, ordered handoff history, custom errors, events. 25 Hardhat tests.
 - **Custodial wallets**: each business user signs with their own HD-derived wallet, so on-chain role checks are real. The app holds no keys.

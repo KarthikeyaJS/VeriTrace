@@ -60,3 +60,11 @@ Each entry: the decision, then a one-line reason.
 - **The ML check is visible even when it passes** (`ML_NORMAL`, severity `ok`) and says when it didn't run (`technical.ml = null`, "not run" in the app), so users can tell a clean ML result from a missing one. A missing score is never reported as a reason in "Why", only in Technical details, to avoid alarming consumers.
 - **ML results are stored per scan** (`mlScored`, `ml`), so admin reports can count and list ML flags with single-field Firestore queries (`mlScored == true`, `flags array-contains ML_ANOMALY`), and so the data can later be exported to retrain on real journeys.
 - **e2e ML checks report SKIP when the service is off**, instead of PASS or FAIL: ML is optional, but the table must not claim coverage it didn't have.
+
+## Client hand-off
+- **The client gets a prebuilt release APK** (`dist\VeriTrace.apk`, default server `http://127.0.0.1:3000`), so they need Node.js and `adb`, not Flutter or Android Studio. `start-all.ps1` installs it over USB with `adb reverse`; Wi-Fi works through the in-app server setting.
+- **The APK contains arm64 + x86_64 code only** (no 32-bit ARM). arm64 covers current Android phones; x86_64 lets it run on Android emulators too (useful for testing or presenting on a laptop). This keeps the build lighter than a full universal APK.
+- **Firebase keys are not packaged by default** (`package-client.ps1 -IncludeFirebaseKeys` opts in). Handing a service-account key to a third party is the developer's call.
+- **Every `start-all.ps1` run starts from fresh demo data.** The local Hardhat chain is ephemeral, so the launcher always redeploys and reseeds, and each demo starts from the same known state.
+- **ML requirements use environment markers:** tested pins on Python ≤3.12, current releases on 3.13+ (where the pinned wheels don't exist). `setup.ps1` retrains if the bundled model can't be loaded.
+

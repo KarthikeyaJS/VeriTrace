@@ -20,6 +20,8 @@ Uses the data created by `npm run reset-demo`. All accounts use the password **`
 | `06_VT-2026-000006_expired-flagged.png` | Nila Cough Syrup — expired | **Flagged** |
 | `07_VT-2026-000007_over-scanned-flagged.png` | Aurora Buds Lite — 14 scans / 8 devices | **Flagged** |
 | `08_VT-2026-000008_manufactured-ready.png` | Aurora Tab 11 — at manufacturer (live demo item) | **Flagged** if a consumer scans |
+| `11_…` – `15_…` | everyday catalogue: vitamin C (sold), sunscreen, ORS drink, dash cam (sold), titanium smartwatch | **Genuine** |
+| `16_VT-2026-000014_smart-bulb-ready.png` | Aurora Smart Bulb — at manufacturer (spare live demo item) | **Flagged** if a consumer scans |
 | `09_FORGED_VT-2026-000002_forged-suspect.png` | Real ID, fake fingerprint | **Suspect** |
 | `10_UNKNOWN_VT-2026-999999_unknown-unverified.png` | Never registered | **Unverified** |
 
@@ -60,7 +62,7 @@ Uses the data created by `npm run reset-demo`. All accounts use the password **`
 ## 5:30 — Admin (45 s)
 1. Log in as `admin@veritrace.demo`. **Users**: role chips plus the live **on-chain role** for each account.
 2. ⋮ on a user → change role or **Deactivate** → the on-chain role becomes *No role*, so their wallet can no longer move goods.
-3. **Reports**: scans per result, recent Flagged/Suspect alerts (the scans you just made).
+3. **Reports**: scans per result, recent Flagged/Suspect alerts (12 verifications are pre-recorded by the seed, plus the ones you just made), and the **Anomaly detection (ML)** card.
 
 ## 6:15 — Wrap-up (30 s)
 "Fingerprints and custody live on-chain; product details stay off-chain. No personal data is on-chain. Every write is checked twice, by the API and by the smart contract. A QR can still be copied, which is why we flag repeated scans rather than claim to prevent copying. See `docs/LIMITATIONS.md`."

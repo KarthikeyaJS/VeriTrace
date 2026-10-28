@@ -1,4 +1,5 @@
 // Writes demo/qr/*.png: one QR per seeded product, a forged QR (valid ID, wrong hash) and an unknown-ID QR.
+// Numbering is stable for the demo script: scenario products 01-08, forged 09, unknown 10, catalogue 11+.
 // Also writes demo/qr/index.json + README.md describing the expected verification result for each image.
 const fs = require("fs");
 const path = require("path");
@@ -6,7 +7,7 @@ const QRCode = require("qrcode");
 const store = require("../services/firestore");
 const products = require("../services/products");
 const { buildPayload } = require("../services/qr");
-const { DEMO_PRODUCTS, FORGED, UNKNOWN } = require("./demoData");
+const { DEMO_PRODUCTS, DEMO_CATALOG, FORGED, UNKNOWN } = require("./demoData");
 
 const OUT_DIR = path.join(__dirname, "..", "..", "demo", "qr");
 
@@ -15,14 +16,16 @@ async function writeQr(file, payload) {
   return file;
 }
 
-/** @param created [{slug, expected, productId, qrPayload, story, input}] */
+/** @param created [{slug, group, expected, productId, qrPayload, story, input}] */
 async function generateDemoQrs(created) {
   fs.mkdirSync(OUT_DIR, { recursive: true });
   for (const f of fs.readdirSync(OUT_DIR)) if (f.endsWith(".png")) fs.unlinkSync(path.join(OUT_DIR, f));
 
+  const scenario = created.filter((p) => p.group !== "catalog");
+  const catalog = created.filter((p) => p.group === "catalog");
   const entries = [];
   let n = 1;
-  for (const p of created) {
+  for (const p of scenario) {
     const file = `${String(n++).padStart(2, "0")}_${p.productId}_${p.slug}.png`;
     await writeQr(file, p.qrPayload);
     entries.push({ file, productId: p.productId, name: p.input.name, expected: p.expected, story: p.story, payload: p.qrPayload });
@@ -38,6 +41,12 @@ async function generateDemoQrs(created) {
   const unknownFile = `${String(n++).padStart(2, "0")}_UNKNOWN_${UNKNOWN.productId}_${UNKNOWN.slug}.png`;
   await writeQr(unknownFile, unknownPayload);
   entries.push({ file: unknownFile, productId: UNKNOWN.productId, name: "Unknown product", expected: UNKNOWN.expected, story: "ID was never registered", payload: unknownPayload });
+
+  for (const p of catalog) {
+    const file = `${String(n++).padStart(2, "0")}_${p.productId}_${p.slug}.png`;
+    await writeQr(file, p.qrPayload);
+    entries.push({ file, productId: p.productId, name: p.input.name, expected: p.expected, story: p.story, payload: p.qrPayload });
+  }
 
   fs.writeFileSync(path.join(OUT_DIR, "index.json"), JSON.stringify({ generatedAt: new Date().toISOString(), entries }, null, 2));
   const rows = entries.map((e) => `| \`${e.file}\` | ${e.productId} | ${e.name} | **${e.expected}** | ${e.story} |`).join("\n");
@@ -55,14 +64,15 @@ if (require.main === module) {
   (async () => {
     const all = await store.listProducts();
     const created = [];
-    for (const def of DEMO_PRODUCTS) {
+    const defs = [...DEMO_PRODUCTS.map((d) => ({ ...d, group: "scenario" })), ...DEMO_CATALOG.map((d) => ({ ...d, group: "catalog" }))];
+    for (const def of defs) {
       const doc = all.find((p) => p.name === def.input.name);
       if (!doc) continue;
       const { payload } = await products.getQrPayload(doc.productId);
       created.push({ ...def, productId: doc.productId, qrPayload: payload });
     }
     if (!created.length) throw new Error("No demo products found. Run `npm run reset-demo` first.");
-    const files = await generateDemoQrs(created.reverse().sort((a, b) => a.productId.localeCompare(b.productId)));
+    const files = await generateDemoQrs(created);
     console.log(`Wrote ${files.length} QR images to ${OUT_DIR}`);
   })().catch((err) => {
     console.error(err.message);

@@ -55,3 +55,7 @@ ml/data/
 
 # start-all.ps1 window logs
 logs/
+
+# Client package output and downloaded platform-tools (setup.ps1)
+dist/
+tools/

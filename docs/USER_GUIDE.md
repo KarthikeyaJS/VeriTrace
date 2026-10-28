@@ -72,6 +72,14 @@ Accounts the admin creates in the app get the password typed or generated on the
 | `VT-2026-000008` | Aurora Tab 11 | At Aurora Electronics (use it for a live transfer demo) | **Flagged** until it reaches a shop |
 | QR `09_FORGED…` | real ID of 000002 with a fake fingerprint | — | **Suspect**: forged label |
 | QR `10_UNKNOWN…` | `VT-2026-999999` | never registered | **Unverified** |
+| `VT-2026-000009` (QR `11_…`) | Nila Vitamin C 1000 mg | Sold by QuickCare Pharmacy | **Genuine** |
+| `VT-2026-000010` (QR `12_…`) | Nila SunShield SPF 50 Sunscreen (Cosmetics) | At QuickCare Pharmacy | **Genuine** |
+| `VT-2026-000011` (QR `13_…`) | Nila ORS Electrolyte Drink (Food & Beverage) | At CityMart Bengaluru | **Genuine** |
+| `VT-2026-000012` (QR `14_…`) | Aurora DriveCam D2 Dash Camera (Automotive Parts) | M → S1 → S2 → CityMart → Sold | **Genuine** |
+| `VT-2026-000013` (QR `15_…`) | Aurora Chronos Titanium Smartwatch (Luxury Goods) | At CityMart Bengaluru | **Genuine** |
+| `VT-2026-000014` (QR `16_…`) | Aurora Smart Bulb 9W (4-pack) | At Aurora Electronics (a second item for live transfers) | **Flagged** until it reaches a shop |
+
+The admin **Reports** tab starts with 12 recorded verifications (7 Genuine, 2 Flagged, 2 Suspect, 1 Unverified), plus the 14-scan history of Aurora Buds Lite.
 
 ---
 
